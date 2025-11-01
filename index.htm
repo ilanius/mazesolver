@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script>
+
+async function imageToMazeMatrix(src) {
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = reject;
+    i.src = src;
+  });
+ 
+  // Draw image to canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, img.width, img.height).data;
+
+  const w = img.width;
+  const h = img.height;
+
+  // Initialize 2D array manually
+  var maze = new Array(h);
+  for (let y = 0; y < h; y++) {
+    maze[y] = new Int16Array(w);
+  }
+
+  let start = null, goal = null;
+
+  // Loop through every pixel
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i4 = (y * w + x) * 4;
+      const r = data[i4];
+      const g = data[i4 + 1];
+      const b = data[i4 + 2];
+      // detect green (start) and red (goal)
+      if (g > 200 && r < 80 && b < 80) {
+        start = [x, y];
+      } else if (r > 200 && g < 80 && b < 80) {
+        goal = [x,y];
+        maze[y][x]  = 0;
+        continue;
+      }
+      // -1 = wall, white = 0 path
+      const brightness = (r + g + b) / 3;
+      maze[y][x] = brightness > 128 ? 0 : -1;
+    }
+  }
+  return { canvas, maze, start, goal, width: w, height: h };
+}
+
+function bfsFill(maze, x1, y1, x2, y2) { // breadth first fill
+  const h = maze.length;
+  const w = maze[0].length;
+  const dirs = [
+    [1, 0], /* right */   [-1, 0], /* left */
+    [0, 1], // down
+    [0, -1] // up
+  ];
+
+  const queue = [];
+  queue.push([x1, y1]);
+  maze[y1][x1] = 1; // start distance = 1
+
+  while (queue.length > 0) {
+    const [x, y] = queue.shift();
+    if (x === x2 && y === y2) {
+      console.log( 'found ');
+      // Reconstruct path from goal -> start
+      const path = [];
+      let cx = x, cy = y;
+      let dist = maze[cy][cx];
+      while (dist > 1) {
+        path.push([cx, cy]);
+        for (let i = 0; i < 4; i++) {
+          const nx = cx + dirs[i][0];
+          const ny = cy + dirs[i][1];
+          if (ny < 0 || ny >= h || nx < 0 || nx >= w) continue;
+          if (maze[ny][nx] === dist - 1) {
+            cx = nx;
+            cy = ny;
+            dist--;
+            break;
+          }
+        }
+      }
+      path.push([x1, y1]); // include start
+      return path; // from goal → start
+    }
+    const dist = maze[y][x];
+    for (let i = 0; i < 4; i++) {
+      const nx = x + dirs[i][0];
+      const ny = y + dirs[i][1];
+      if (ny < 0 || ny >= h || nx < 0 || nx >= w) continue;
+      if (maze[ny][nx] !== 0) continue; // skip walls and visited
+      maze[ny][nx] = dist + 1;
+      queue.push([nx, ny]);
+    }
+  }
+  return null; // no path
+}
+
+function drawPathOnCanvas(ctx, path, color = 'red') {
+  if (!path) return;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const [x0, y0] = path[0];
+  ctx.moveTo(x0 + 0.5, y0 + 0.5);
+  for (let i = 1; i < path.length; i++) {
+    const [x, y] = path[i];
+    ctx.lineTo(x + 0.5, y + 0.5);
+  }
+  ctx.stroke();
+}
+    // Example use (assuming canvas already has the labyrinth drawn)
+    // const path = bfsFill(maze, start[1], start[0], goal[1], goal[0]);
+    // drawPathOnCanvas(ctx, path, 'blue');
+  </script>
+</head>
+<body>
+<img src="labyrinth.png">
+<hr>
+<div id="canvas0"></div>
+</body>
+<script>
+ 
+imageToMazeMatrix('labyrinth.png').then( rslt => {
+  console.log(rslt.maze ); // Now logs the actual maze object
+  var path = bfsFill( rslt.maze, rslt.start[0], rslt.start[1], rslt.goal[0], rslt.goal[1] );
+  console.log( path );
+  drawPathOnCanvas( rslt.canvas.getContext('2d'), path );
+  canvas0 = document.getElementById('canvas0');
+  canvas0.appendChild(  rslt.canvas );
+});
+
+
+</script>
+</html>
+
