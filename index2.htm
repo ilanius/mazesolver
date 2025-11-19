@@ -19,8 +19,13 @@
     <div id="canvas-container">   </div>
 
     <script>
-        // --- CORE MAZE LOGIC ---
+        /* 
+        We still need to load the page from a server
+        Execute this inside the directory
+            python -m http.server 8080
+        */
 
+        // --- CORE MAZE LOGIC ---
         // Convert a loaded image element to a 2D matrix
         // This function is now synchronous, operating on a ready 'img' element.
         function imageToMazeMatrix(img) {
