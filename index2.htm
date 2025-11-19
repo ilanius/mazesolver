@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Synchronous Maze Solver</title>
+    <style>
+        body { font-family: sans-serif; }
+        img { border: 1px solid #ccc; }
+        canvas { border: 1px solid black; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h2>Maze Solver (Synchronous)</h2>
+    <p>Image Source (Labyrinth.png):</p>
+    <img id="maze-image-source" src="labyrinth.png" alt="Source Maze">
+    <hr>
+        
+    <div id="canvas-container">   </div>
+
+    <script>
+        // --- CORE MAZE LOGIC ---
+
+        // Convert a loaded image element to a 2D matrix
+        // This function is now synchronous, operating on a ready 'img' element.
+        function imageToMazeMatrix(img) {
+            // Draw image to canvas to access pixel data
+            const canvas = document.createElement('canvas');
+            const w = img.width;
+            const h = img.height;
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(0, 0, w, h).data;
+
+            // Initialize 2D array
+            const maze = Array.from({ length: h }, () => new Int16Array(w));
+            let start = null, goal = null;
+
+            // Loop through every pixel
+            console.log( 'h:' + h + ' w:' + w );
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const i4 = (y * w + x) * 4;
+                    const r = data[i4];
+                    const g = data[i4 + 1];
+                    const b = data[i4 + 2];
+                    // Detect specific colors: Green (Start) and Red (Goal)
+                    if ( y > 297 && x > 100 ) console.log( 'y:' + y + ' x:' + x + ' r:' + r + ' g:' + g + ' b:' + b );
+
+                    if (g > 200 && r < 80 && b < 80) { // Green
+                        start = [x, y];
+                        maze[y][x] = 0;
+                    } else if (r > 200 && g < 80 && b < 80) { // Red
+                        goal = [x, y];
+                        maze[y][x] = 0;
+                    
+                    } else {
+                        // -1 = wall (dark/black), 0 = path (bright/white)
+                        const brightness = (r + g + b) / 3;
+                        maze[y][x] = brightness > 128 ? 0 : -1;
+                    }
+                }
+            }
+            console.log( goal );
+            return { canvas, maze, start, goal };
+        }
+
+        // Breadth-First Search (BFS) to find the shortest path
+        function bfsFill(maze, startX, startY, goalX, goalY) {
+            const h = maze.length;
+            const w = maze[0].length;
+            const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]]; // R, L, D, U
+
+            const queue = [];
+            queue.push([startX, startY]);
+            maze[startY][startX] = 1; // Start distance = 1
+
+            while (queue.length > 0) {
+                const [x, y] = queue.shift();
+                
+                // Goal reached
+                if (x === goalX && y === goalY) {
+                    // Reconstruct path (goal -> start)
+                    const path = [];
+                    let cx = x, cy = y;
+                    let dist = maze[cy][cx];
+                    while (dist > 1) {
+                        path.push([cx, cy]);
+                        for (const [dx, dy] of dirs) {
+                            const nx = cx + dx;
+                            const ny = cy + dy;
+                            if (ny >= 0 && ny < h && nx >= 0 && nx < w && maze[ny][nx] === dist - 1) {
+                                cx = nx;
+                                cy = ny;
+                                dist--;
+                                break;
+                            }
+                        }
+                    }
+                    path.push([startX, startY]); // Include start
+                    return path.reverse(); // Return path from start → goal
+                }
+
+                const dist = maze[y][x];
+                for (const [dx, dy] of dirs) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    
+                    // Check bounds and if it's an unvisited path (value is 0)
+                    if (ny >= 0 && ny < h && nx >= 0 && nx < w && maze[ny][nx] === 0) {
+                        maze[ny][nx] = dist + 1; // Mark distance
+                        queue.push([nx, ny]);
+                    }
+                }
+            }
+            return null; // No path found
+        }
+
+        // Draw the found path onto the canvas
+        function drawPathOnCanvas(ctx, path, color = 'blue') {
+            if (!path || path.length < 2) return;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            
+            ctx.moveTo(path[0][0] + 0.5, path[0][1] + 0.5);
+            
+            for (let i = 1; i < path.length; i++) {
+                const [x, y] = path[i];
+                ctx.lineTo(x + 0.5, y + 0.5);
+            }
+            ctx.stroke();
+        }
+
+        // --- MAIN EXECUTION FLOW ---
+
+        function solveMazeSynchronous() {
+            const imgElement = document.getElementById('maze-image-source');
+            const canvasContainer = document.getElementById('canvas-container');
+            
+            // 1. Convert Image to Matrix (Synchronous)
+            const { canvas, maze, start, goal } = imageToMazeMatrix(imgElement);
+
+            if (!start || !goal) {
+                alert('Error: Start (Green) or Goal (Red) pixel not found in the image.');
+                return;
+            }
+
+            // 2. Solve with BFS (Synchronous)
+            const path = bfsFill(maze, start[0], start[1], goal[0], goal[1]);
+
+            // 3. Draw Path on Canvas
+            const ctx = canvas.getContext('2d');
+            drawPathOnCanvas(ctx, path);
+
+            // 4. Display Result
+            canvasContainer.innerHTML = '<h3>Solved Maze:</h3>';
+            canvasContainer.appendChild(canvas);
+
+            if (!path) {
+                console.log('No path found.');
+            }
+        }
+
+        // Attach the function to the button click
+        
+    </script>
+    <button id="solve-button" onclick="solveMazeSynchronous()">Start Conversion and Solve Maze</button>
+    
+</body>
+</html>
