@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <title>Synchronous Maze Solver</title>
     <style>
-        body { font-family: sans-serif; }
-        img { border: 1px solid #ccc; }
-        canvas { border: 1px solid black; margin-top: 10px; }
+        body {
+            font: 12px arial; 
+        }
+        img, canvas { border: 1px solid #ccc; padding: 1em; }
     </style>
 </head>
 <body>
@@ -15,52 +16,51 @@
     <p>Image Source (Labyrinth.png):</p>
     <img id="maze-image-source" src="labyrinth.png" alt="Source Maze">
     <hr>
-        
     <div id="canvas-container">   </div>
 
     <script>
-        /* 
-        We still need to load the page from a server
-        Execute this inside the directory
-            python -m http.server 8080
-        */
+        /* ******************************************************** */
+        /*                                                          */
+        /* We need to load the page from a server.                  */
+        /* If working locally execute this inside the directory     */
+        /* > python -m http.server 8080                             */
+        /*                                                          */
+        /* ******************************************************** */
 
-        // --- CORE MAZE LOGIC ---
-        // Convert a loaded image element to a 2D matrix
-        // This function is now synchronous, operating on a ready 'img' element.
+        /* Convert a loaded image element to a 2D matrix            */
         function imageToMazeMatrix(img) {
             // Draw image to canvas to access pixel data
-            const canvas = document.createElement('canvas');
-            const w = img.width;
-            const h = img.height;
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
+            let canvas, w, h, ctx, data;
+            canvas  = document.createElement('canvas');
+            [w,h]   = [img.width, img.height];
+            [canvas.width, canvas.height ] = [w, h];
+            ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
-            const data = ctx.getImageData(0, 0, w, h).data;
+            data = ctx.getImageData(0, 0, w, h).data;
 
             // Initialize 2D array
-            const maze = Array.from({ length: h }, () => new Int16Array(w));
+            let maze = new Array(h); 
+            for (let i = 0; i < h; i++) {
+              maze[i] = new Int16Array(w);  /* zero initialized unlike c */
+            }
+
             let start = null, goal = null;
 
             // Loop through every pixel
-            console.log( 'h:' + h + ' w:' + w );
             for (let y = 0; y < h; y++) {
                 for (let x = 0; x < w; x++) {
                     const i4 = (y * w + x) * 4;
                     const r = data[i4];
                     const g = data[i4 + 1];
                     const b = data[i4 + 2];
-                    // Detect specific colors: Green (Start) and Red (Goal)
-                    if ( y > 297 && x > 100 ) console.log( 'y:' + y + ' x:' + x + ' r:' + r + ' g:' + g + ' b:' + b );
 
+                    // Detect specific colors: Green (Start) and Red (Goal)
                     if (g > 200 && r < 80 && b < 80) { // Green
                         start = [x, y];
                         maze[y][x] = 0;
                     } else if (r > 200 && g < 80 && b < 80) { // Red
                         goal = [x, y];
-                        maze[y][x] = 0;
-                    
+                        maze[y][x] = 0;                    
                     } else {
                         // -1 = wall (dark/black), 0 = path (bright/white)
                         const brightness = (r + g + b) / 3;
@@ -68,7 +68,6 @@
                     }
                 }
             }
-            console.log( goal );
             return { canvas, maze, start, goal };
         }
 
